@@ -5,9 +5,9 @@
 This project aims at training agents to cooperatively learn a policy to move to
 a goal position while in a formation.
 
-The rewards are sparse and two fold.
-R_form: agents recieve this reward when the desired formation is achieved.
-R_goal: agents recieve this reward when they have moved to the desired 
+The rewards are sparse and two fold.  
+ - `R_form`: agents recieve this reward when the desired formation is achieved.
+ - `R_goal`: agents recieve this reward when they have moved to the desired 
 goal. This reward is only given when the agents have moved to the goal position
 in the desired formation.
 
