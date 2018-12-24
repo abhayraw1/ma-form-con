@@ -32,7 +32,10 @@ the centroid of the formation(it will be the same as the world frame heading)
 This will be a dictionary of vectors representing the observed state of the
 agents from their respective coordinate frames.
 
-#### 
+#### Goal
+A triangle is sampled as the goal formation.
+The goal is given as the relative position vector for agents from the 
+centroid of the sampled goal formation.
 
 
 It will have a goal, a random formation in the form of sides of the triangle

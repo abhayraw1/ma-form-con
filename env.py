@@ -69,14 +69,13 @@ class FormEnv(gym.Env):
     def get_form_goal(self):
         sides = np.random.random(3)*0.8 + 0.7
         if np.array([np.sum(sides) - 2*x > 0 for x in sides]).all():
+            self.goal_sides = sides
             a, b, c = sides
             coordinates = [[0, 0], [a, 0]]
             h = (c**2 - b**2 + a**2)/(2*a)
             coordinates.append([h, (c**2 - h**2)**.5])
-            print (coordinates, sides)
             centroid = np.mean(coordinates, axis=0)
-            print(centroid)
-            return [i - centroid for i in coordinates]
+            return np.hstack([i - centroid for i in coordinates])
         return self.get_form_goal()
 
     def sample_pose(self, limits=None):
@@ -99,10 +98,10 @@ class FormEnv(gym.Env):
             return None
         if self.viewer is None:
             self.init_viewer()
-        if self.goal_changed:
-            self.goal_changed = False
-            self.goal_tf.set_translation(*(self.goal.tolist()[:-1] +
-                                         self.w_limits//2)*self.scale)
+        # if self.goal_changed:
+        #     self.goal_changed = False
+        #     self.goal_tf.set_translation(*(self.goal.tolist()[:-1] +
+        #                                  self.w_limits//2)*self.scale)
         for agent, agent_tf in zip(self.agents, self.agent_tfs):
             agent_tf.set_translation(*(agent.pose.tolist()[:-1] +
                                      self.w_limits//2)*self.scale)
@@ -115,4 +114,19 @@ class FormEnv(gym.Env):
     def compute_obs(self):
         obs = {j.id: np.hstack([np.hstack(j.pose.getPoseInFrame(i.pose))
                for i in self.agents if i.id != j.id]) for j in self.agents}
-        return obs
+        f_c = np.mean([a.pose.tolist()[:-1] for a in self.agents], axis=0)
+        cst = np.hstack([a.pose.tolist()[:-1] - f_c for a in self.agents])
+        hed = np.hstack(FormEnv.cossin(a.pose.theta) for a in self.agents)
+        return obs, cst, hed
+
+    def step(self, actions):
+        assert self.goal is not None
+        for agent_id, action in actions.items():
+            [self.agents[agent_id].step(action) for _ in range(self.num_iter)]
+        new_obs = self.compute_obs()
+        return (*new_obs, *self.compute_reward(new_obs[1]))
+
+    def compute_reward(self):
+        done = False
+        reward = -self.step_penalty
+
