@@ -19,6 +19,12 @@ observable by the agents.
  - A function will convert the state of the environment to the observations of
 the different agents.
 
+#### State
+The state of the environment will be denoted by a a vector indicating the
+following:
+1. The centroid of the current formation. `2 `
+2.  
+
 It will have a goal, a random formation in the form of sides of the triangle
 
 The main training algorithm will use DDPG + HER for training
