@@ -45,5 +45,9 @@ The main training algorithm will use DDPG + HER for training
 
 
 ## To do list:
+ - [ ] Make single actor
+ - [ ] Central critic 
+ - [ ] HER transitons
+ - [ ] 
 
 ## Setting up
