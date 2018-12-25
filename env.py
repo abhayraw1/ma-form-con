@@ -25,6 +25,7 @@ class FormEnv(gym.Env):
         self.num_iter = 50
         self.max_episode_steps = 25
         self.step_penalty = 1.0
+        self.max_reward = 2.0
         self.action_low = np.array([0.0, -np.pi/4])
         self.action_high = np.array([0.4, np.pi/4])
         self.action_space = Box(self.action_low, self.action_high, dtype="f")
@@ -93,15 +94,10 @@ class FormEnv(gym.Env):
         return self.compute_obs()
 
     def render(self, mode='human'):
-        # We also add some offset = self.s_limit//2 to center the origin
         if self.goal is None:
             return None
         if self.viewer is None:
             self.init_viewer()
-        # if self.goal_changed:
-        #     self.goal_changed = False
-        #     self.goal_tf.set_translation(*(self.goal.tolist()[:-1] +
-        #                                  self.w_limits//2)*self.scale)
         for agent, agent_tf in zip(self.agents, self.agent_tfs):
             agent_tf.set_translation(*(agent.pose.tolist()[:-1] +
                                      self.w_limits//2)*self.scale)
@@ -124,9 +120,14 @@ class FormEnv(gym.Env):
         for agent_id, action in actions.items():
             [self.agents[agent_id].step(action) for _ in range(self.num_iter)]
         new_obs = self.compute_obs()
-        return (*new_obs, *self.compute_reward(new_obs[1]))
+        return (*new_obs, *self.compute_reward())
 
     def compute_reward(self):
-        done = False
-        reward = -self.step_penalty
+        reward, done = -self.step_penalty, False
+        sides = sorted([Pose.dist(i.pose, j.pose) for i in self.agents 
+                        for j in self.agents if i.id < j.id])
+        if (sides - np.array(self.goal_sides) < 0.15).all():
+            reward, done = self.max_reward, True
+        print(sides - np.array(self.goal_sides))
+        return reward, done, {"success": done}
 
