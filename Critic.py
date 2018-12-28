@@ -12,8 +12,8 @@ from FCNN import FCNN
 class Critic:
     def __init__(self, sess, input_t, **params):
         self.session = sess
-        self.input_t = input_t
         self.__dict__.update(params)
+        self.__dict__.update(input_t)
         self.generate_networks()
         self.define_operations()
 
@@ -62,7 +62,9 @@ class Critic:
     def get_action_grads(self, x, g, a1, a2, a3):
         feed_vals = {self.x: x, self.g: g, self.a1: a1,
                      self.a2: a2, self.a3: a3}
-        return self.session.run(self.a_grad_ops, feed_dict=feed_vals)
+        r = self.session.run(self.a_grad_ops, feed_dict=feed_vals)
+        
+        return r
 
     def update_target(self):
         self.session.run(self.updt_Q)
