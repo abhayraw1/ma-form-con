@@ -20,7 +20,7 @@ class FCNN:
         self.make()
 
     def make(self):
-        with tf.variable_scope(self.scope):
+        with tf.variable_scope(self.scope, reuse=tf.AUTO_REUSE):
             _input = self._input
             for i in range(0, self.n_layers-1):
                 op = dense(_input, self.n_units,
@@ -33,7 +33,7 @@ class FCNN:
             self.nn = op if self.op_act is None else self.op_act(op)
             self.net_params = tf.get_collection(TVARS, scope=self.scope)
         for i in self.net_params:
-            tf.summary.histogram(i.name, i)
+            tf.summary.histogram(i.name.replace(":", "_"), i)
 
     def __call__(self, sess, inputs):
         return sess.run(self.nn, inputs)
