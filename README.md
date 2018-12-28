@@ -51,5 +51,6 @@ The main training algorithm will use DDPG + HER for training
  - [ ] Rollouts
  - [ ] Training code
  - [ ] update code for maddpg
+ - [ ] Exploration through critic
 
 ## Setting up
