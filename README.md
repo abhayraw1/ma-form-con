@@ -38,16 +38,18 @@ The goal is given as the relative position vector for agents from the
 centroid of the sampled goal formation.
 
 
-It will have a goal, a random formation in the form of sides of the triangle
+It will have a goal, a random formation in the form of sides of the triangle.
 
 The main training algorithm will use DDPG + HER for training
 
 
 
 ## To do list:
- - [ ] Make single actor
- - [x] Central critic 
+ - [ ] Make multiple agents
+ - [x] Central critic
  - [ ] HER transitons
+ - [ ] Rollouts
+ - [ ] Training code
  - [ ] update code for maddpg
 
 ## Setting up
