@@ -10,6 +10,8 @@ from numpy.random import random
 from PointEnvironment.Pose import Pose
 from PointEnvironment.Agent import Agent
 
+from util import error
+
 class FormEnv(gym.Env):
     cossin = staticmethod(lambda x: np.array([np.cos(x), np.sin(x)]))
 
@@ -68,7 +70,7 @@ class FormEnv(gym.Env):
         self.viewer.add_geom(circle)
 
     def get_form_goal(self):
-        sides = np.random.random(3)*0.8 + 0.7
+        sides = sorted(np.random.random(3)*0.8 + 0.7)
         if np.array([np.sum(sides) - 2*x > 0 for x in sides]).all():
             self.goal_sides = sides
             a, b, c = sides
@@ -126,8 +128,8 @@ class FormEnv(gym.Env):
         reward, done = -self.step_penalty, False
         sides = sorted([Pose.dist(i.pose, j.pose) for i in self.agents 
                         for j in self.agents if i.id < j.id])
-        if (sides - np.array(self.goal_sides) < 0.15).all():
+        if (np.abs(sides - np.array(self.goal_sides)) < 0.15).all():
+            error.out("\nHURRAY\n{}\n{}\n{}\n{}\n".format(self.goal_sides, sides, [i.pose for i in self.agents], sides - np.array(self.goal_sides)))
             reward, done = self.max_reward, True
-        print(sides - np.array(self.goal_sides))
         return reward, done, {"success": done}
 
