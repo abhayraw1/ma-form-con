@@ -27,6 +27,9 @@ class MADDPG:
         self.noise = [Noise(**self.noise_params) for _ in range(3)]
         # INITIALIZE REPLAY BUFFER
         self.memory = Memory(self.memory_size)
+        # AVERAGE AGENT POLICIES
+        avg_pi = [tf.reduce_mean(i, axis=0) for i in zip(*[x.pi.net_params for x in self.agents])]
+        self.avg_op = [tf.assign(i, j) for x in self.agents for i, j in zip(x.pi.net_params, avg_pi)]
 
     def create_input_placeholders(self):
         self.inputs = {}
@@ -46,16 +49,21 @@ class MADDPG:
             self.inputs["dqdu"] = ph((None, 2), "dqdu")
 
 
-    def step(self, obs, goal, x=None, explore=True):
+    def step(self, obs, goal, state=None, explore=True):
         q = 0.
+        sh = (1, -1)
+        obs = {i: j.reshape(sh) for i, j in obs.items()}
+        goal = goal.reshape(sh)
+        state = state.reshape(sh)
         if explore:
-            u = [x.predict(obs[i].reshape(-1, 8), goal.reshape(-1, 6)).reshape((2,))
-                 + self.noise[i]() for i, x in enumerate(self.agents)]
-        else:
-            u = [x.predict_target(obs[i].reshape(-1, 8), goal.reshape(-1, 6)).reshape((2,))
+            u = [x.predict(obs[i], goal) + self.noise[i]() 
                  for i, x in enumerate(self.agents)]
-        if x is not None:
-            q = self.critic.predict_target(x, goal, *u)
+            # print(u)
+        else:
+            u = [x.predict_target(obs[i], goal) for i, x in enumerate(self.agents)]
+        if state is not None:
+            q = self.critic.predict_target(state, goal, *u)
+        u = [x.reshape((1, -1)) for x in u]
         return [self.scale_u(x) for x in u], u, float(q)
 
     def remember(self, experience):
@@ -69,10 +77,10 @@ class MADDPG:
         # print(a1)
         # HER TRANSACTIONS
        
-        # her_idxs = np.where(np.random.random(self.b_size) < 0.80)[0]
-        # g[her_idxs:] = x2[her_idxs, :6]
-        # r[her_idxs] = 2
-        # t[her_idxs] = 1
+        # her_idxs = np.where(np.random.random(self.b_size).reshape((-1, 1)) < 0.80)
+        # g[her_idxs] = ag[her_idxs]
+        # r[her_idxs] = 2.
+        # d[her_idxs] = True
         obs = [o1, o2, o3]
         n_o = [o21, o22, o23]
         n_u = [j.predict_target(n_o[i], g) for i, j in enumerate(self.agents)]
@@ -81,7 +89,7 @@ class MADDPG:
         self.critic.train(x, g, a1, a2, a3, t_q)
         grad = self.critic.get_action_grads(x, g, a1, a2, a3)
         [j.train(obs[i], g, grad[i][0]) for i, j in enumerate(self.agents)]
-        self.update_targets()
+        # self.update_targets()
 
     def get_batch(self):
         batch = self.memory.sample(self.b_size)
@@ -90,3 +98,4 @@ class MADDPG:
     def update_targets(self):
         self.critic.update_target()
         [x.update_target() for x in self.agents]
+        self.sess.run(self.avg_op)
