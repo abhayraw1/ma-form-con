@@ -10,7 +10,7 @@ from numpy.random import random
 from PointEnvironment.Pose import Pose
 from PointEnvironment.Agent import Agent
 
-from util import error
+from util import error, log
 
 class FormEnv(gym.Env):
     cossin = staticmethod(lambda x: np.array([np.cos(x), np.sin(x)]))
@@ -90,7 +90,9 @@ class FormEnv(gym.Env):
         return Pose(x=x, y=y, t=theta)
 
     def reset(self):
-        [a.reset(self.sample_pose(np.array([2, 2]))) for a in self.agents]
+        poses = self.get_form_goal().reshape((3,-1))
+        # log.out(poses)
+        [a.reset(Pose(*poses[i])) for i, a in enumerate(self.agents)]
         self.goal = self.get_form_goal()
         self.goal_changed = True
         return self.compute_obs()
@@ -118,6 +120,7 @@ class FormEnv(gym.Env):
         return obs, cst, hed
 
     def step(self, actions):
+        # print(actions.values())
         assert self.goal is not None
         for agent_id, action in actions.items():
             [self.agents[agent_id].step(action) for _ in range(self.num_iter)]
@@ -128,6 +131,7 @@ class FormEnv(gym.Env):
         reward, done = -self.step_penalty, False
         sides = sorted([Pose.dist(i.pose, j.pose) for i in self.agents 
                         for j in self.agents if i.id < j.id])
+        # log.out(sides)
         if (np.abs(sides - np.array(self.goal_sides)) < 0.15).all():
             error.out("\nHURRAY\n{}\n{}\n{}\n{}\n".format(self.goal_sides, sides, [i.pose for i in self.agents], sides - np.array(self.goal_sides)))
             reward, done = self.max_reward, True
