@@ -42,6 +42,7 @@ class TextFormatter:
         print(self.format(string))
 
 error = TextFormatter("r", st="b")
+eva = TextFormatter("m")
 info = TextFormatter("m")
 log = TextFormatter("b", st="b")
 
