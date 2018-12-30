@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import tensorflow as tf
-from util import info, log
+from util import log, eva
 
 
 class RolloutGenerator:
@@ -30,7 +30,8 @@ class RolloutGenerator:
         self.reset()
         metrics = ["", "EPISODE.", "REWARD.", "TIMESTEPS.", "AVG_Q.", ""]
         self.logstr = "||".join(i.replace(".", ": {}") for i in metrics)
-        info.out("INITIALIZED {} ROLLOUT GENERATOR".format(self.name))
+        self.logger = eva if self.eval else log
+        self.logger.out("INITIALIZED {} ROLLOUT GENERATOR".format(self.name))
 
     def reset(self):
         self.q_total = 0.
@@ -49,6 +50,7 @@ class RolloutGenerator:
         g = self.env.goal
         while not done and t < self.env.max_episode_steps:
             a, u, q = self.agent.step(obs, g, x, (not self.eval))
+            # log.out(a)
             obs2, xs2, xh2, r, done, info = self.env.step(dict(enumerate(a)))
             x2 = np.hstack([xs2, xh2])
             self.agent.remember([x, g, *obs.values(), *a, r, done, x2, xs2, *obs2.values()])
@@ -66,23 +68,24 @@ class RolloutGenerator:
             # Train agent if required
             if not self.eval:
                 [self.agent.train() for _ in range(self.train_cycles_per_ts)]
+                self.agent.update_targets()
             else:
                 if "step_sleep" in self.__dict__:
                     time.sleep(self.step_sleep)
         self.episode += 1
         self.update_stats(episodic_q, episodic_r, t)
         self.successes += 1 if done else 0
-        log.out(self.logstr.format(self.episode, episodic_r, t, episodic_q/t))
+        self.logger.out(self.logstr.format(self.episode, episodic_r, t, episodic_q/t))
         self.create_checkpoint()
 
     def create_checkpoint(self):
         if self.periodic_ckpt and self.episode % self.periodic_ckpt == 0:
-            info.out("Creating periodic checkpoint")
+            log.out("Creating periodic checkpoint")
             self.saver.save(self.agent.sess,
                             self.p_ckpt.format("P", self.episode))
-        if self.eval and self.save_best and self.mean_er > self.best_score:
-            info.out("New best score: {}".format(self.mean_er))
-            self.best_score = self.mean_er
+        if self.eval and self.done() and self.save_best and self.successes > self.best_score:
+            log.out("New best score: {}".format(self.successes))
+            self.best_score = self.successes
             self.saver.save(self.agent.sess,
                             self.p_ckpt.format("B", self.episode))
 
@@ -97,7 +100,7 @@ class RolloutGenerator:
     def done(self):
         done = self.n_episodes <= self.episode
         if done and self.eval:
-            print("\n\n")
+            print("\n")
         return done
 
     # def summarize(self):
