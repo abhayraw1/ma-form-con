@@ -24,11 +24,16 @@ class FormEnv(gym.Env):
 
     def configure_defaults(self):
         self.dt = 1e-2
-        self.num_iter = 50
-        self.max_episode_steps = 25
+        self.num_iter = 10
+        self.max_episode_steps = 200
         self.step_penalty = 1.0
-        self.max_reward = 2.0
-        self.action_low = np.array([0.0, -np.pi/4])
+        self.form_reward = 0.
+        #### For compute_reward2
+        alpha = 0.1
+        self.form_reward = alpha/self.max_episode_steps 
+        ####
+        self.max_reward = self.max_episode_steps*(self.max_episode_steps-1)*self.form_reward
+        self.action_low = np.array([0.07, -np.pi/4])
         self.action_high = np.array([0.4, np.pi/4])
         self.action_space = Box(self.action_low, self.action_high, dtype="f")
         self.w_limits = np.array([10, 10])
@@ -93,8 +98,14 @@ class FormEnv(gym.Env):
         poses = self.get_form_goal().reshape((3,-1))
         # log.out(poses)
         [a.reset(Pose(*poses[i])) for i, a in enumerate(self.agents)]
-        self.goal = self.get_form_goal()
+        formation = self.get_form_goal()
+        target = self.sample_pose().tolist()[:-1]
+        self.goal = np.hstack([formation, target])
         self.goal_changed = True
+        #### For compute_reward2
+        self.formation_achieved = False
+        self.time_in_formation = 0
+        ####
         return self.compute_obs()
 
     def render(self, mode='human'):
@@ -109,6 +120,8 @@ class FormEnv(gym.Env):
         centroid = np.mean([a.pose.tolist()[:-1] for a in self.agents], 0)
         self.centroid_tf.set_translation(*(centroid+self.w_limits//2)
                                          * self.scale)
+        goal = self.goal[-2:]
+        self.goal_tf.set_translation(*(goal+self.w_limits//2)* self.scale)
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def compute_obs(self):
@@ -116,6 +129,7 @@ class FormEnv(gym.Env):
                for i in self.agents if i.id != j.id]) for j in self.agents}
         f_c = np.mean([a.pose.tolist()[:-1] for a in self.agents], axis=0)
         cst = np.hstack([a.pose.tolist()[:-1] - f_c for a in self.agents])
+        cst = np.hstack([cst, f_c])
         hed = np.hstack(FormEnv.cossin(a.pose.theta) for a in self.agents)
         return obs, cst, hed
 
@@ -125,15 +139,47 @@ class FormEnv(gym.Env):
         for agent_id, action in actions.items():
             [self.agents[agent_id].step(action) for _ in range(self.num_iter)]
         new_obs = self.compute_obs()
-        return (*new_obs, *self.compute_reward())
+        return (*new_obs, *self.compute_reward2())
 
     def compute_reward(self):
+        return self.compute_reward2()
         reward, done = -self.step_penalty, False
         sides = sorted([Pose.dist(i.pose, j.pose) for i in self.agents 
                         for j in self.agents if i.id < j.id])
         # log.out(sides)
         if (np.abs(sides - np.array(self.goal_sides)) < 0.15).all():
-            error.out("\nHURRAY\n{}\n{}\n{}\n{}\n".format(self.goal_sides, sides, [i.pose for i in self.agents], sides - np.array(self.goal_sides)))
-            reward, done = self.max_reward, True
+            error.out("\nForm\n{}\n{}\n{}\n{}\n".format(self.goal_sides, 
+                      sides, [i.pose for i in self.agents], 
+                      sides - np.array(self.goal_sides)))
+            reward = self.form_reward
+            centroid = np.mean([a.pose.tolist()[:-1] for a in self.agents], 0)
+            err = np.linalg.norm(self.goal[-2:] - centroid)
+            if err < 0.15:
+                error.out("\nGoal\n{}\n{}\n{}".format(self.goal, centroid, err))
+                done = True
+                reward += self.max_reward*3
         return reward, done, {"success": done}
+
+    def compute_reward2(self):
+        done = False
+        sides = sorted([Pose.dist(i.pose, j.pose) for i in self.agents 
+                        for j in self.agents if i.id < j.id])
+        if (np.abs(sides - np.array(self.goal_sides)) < 0.15).all():
+            self.formation_achieved = True
+            self.time_in_formation += 1
+            reward = self.time_in_formation*self.form_reward
+            centroid = np.mean([a.pose.tolist()[:-1] for a in self.agents], 0)
+            err = np.linalg.norm(self.goal[-2:] - centroid)
+            if err < 0.15:
+                error.out("\nGoal\n{}\n{}\n{}".format(self.goal, centroid, err))
+                done = True
+                reward = self.max_reward
+        else:
+            self.formation_achieved = False
+            self.time_in_formation = 0
+            reward = -self.step_penalty
+        return reward, done, {"success": done}
+
+
+
 

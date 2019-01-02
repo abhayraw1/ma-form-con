@@ -68,10 +68,10 @@ class RolloutGenerator:
             # Train agent if required
             if not self.eval:
                 [self.agent.train() for _ in range(self.train_cycles_per_ts)]
-                self.agent.update_targets()
             else:
                 if "step_sleep" in self.__dict__:
                     time.sleep(self.step_sleep)
+        [self.agent.update_targets() for _ in range(self.train_cycles_per_ts)]
         self.episode += 1
         self.update_stats(episodic_q, episodic_r, t)
         self.successes += 1 if done else 0
