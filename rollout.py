@@ -2,7 +2,8 @@ import time
 import numpy as np
 import tensorflow as tf
 from util import log, eva
-
+from memory import Episode
+from collections import deque
 
 class RolloutGenerator:
     """
@@ -41,29 +42,44 @@ class RolloutGenerator:
         self.successes = 0
 
     def generate_rollout(self):
+        self.eval = self.episode+1 % 10 == 0
+        self.logger = eva if self.eval else log
         t = 0
         done = False
         episodic_q = 0.
         episodic_r = 0.
-        obs, xs, xh = self.env.reset()
-        x = np.hstack([xs, xh])
-        g = self.env.goal
+        # records tracjectory/ episode
+        trajectory = Episode(13)
+
+        # for sequence generation
+        obs_stack = {i: deque([np.zeros(10)]*self.tracelen,
+                        maxlen=self.tracelen) for i in range(3)}
+        state_stack = deque([np.zeros(14)]*self.tracelen, maxlen=self.tracelen)
+
+        obs, state = self.env.reset()
         while not done and t < self.env.max_episode_steps:
-            a, u, q = self.agent.step(obs, g, x, (not self.eval))
-            # log.out(a)
-            obs2, xs2, xh2, r, done, info = self.env.step(dict(enumerate(a)))
-            x2 = np.hstack([xs2, xh2])
-            self.agent.remember([x, g, *obs.values(), *a, r, done, x2, xs2, *obs2.values()])
-            x = x2
+            # Add observations and state to the sequence.
+            for i, j in obs_stack.items():
+                obs_stack[i].append(obs[i])
+            state_stack.append(state)
+
+            # Generate actions using sequence of observations
+            act, u = self.agent.step(obs_stack, not self.eval) 
+
+            obs2, state2, r, done, info = self.env.step(dict(enumerate(act)))
+            trajectory.add([state, *obs.values(), *u, r, done, state2,
+                            *obs2.values()])
+            obs, state = obs2, state2
 
             # Render if required
             if "render" in self.__dict__ and self.render:
-                self.env.render()
+                if self.eval:
+                    self.env.render()
 
             # Update stats
             t += 1
-            episodic_r += float(r)
-            episodic_q += float(q)
+            episodic_r += float(r[0])
+            # episodic_q += float(q)
 
             # Train agent if required
             if not self.eval:
@@ -71,10 +87,11 @@ class RolloutGenerator:
             else:
                 if "step_sleep" in self.__dict__:
                     time.sleep(self.step_sleep)
-        [self.agent.update_targets() for _ in range(self.train_cycles_per_ts)]
+        self.agent.update_targets()
         self.episode += 1
         self.update_stats(episodic_q, episodic_r, t)
         self.successes += 1 if done else 0
+        self.agent.remember(trajectory)
         self.logger.out(self.logstr.format(self.episode, episodic_r, t, episodic_q/t))
         self.create_checkpoint()
 
@@ -83,6 +100,7 @@ class RolloutGenerator:
             log.out("Creating periodic checkpoint")
             self.saver.save(self.agent.sess,
                             self.p_ckpt.format("P", self.episode))
+
         if self.eval and self.done() and self.save_best and self.successes > self.best_score:
             log.out("New best score: {}".format(self.successes))
             self.best_score = self.successes
@@ -102,8 +120,3 @@ class RolloutGenerator:
         if done and self.eval:
             print("\n")
         return done
-
-    # def summarize(self):
-    #     if self.summarizer is None:
-    #         return
-    #     summarizer.value.add(tag="{}/")
