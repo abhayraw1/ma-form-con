@@ -42,8 +42,6 @@ class RolloutGenerator:
         self.successes = 0
 
     def generate_rollout(self):
-        self.eval = self.episode+1 % 10 == 0
-        self.logger = eva if self.eval else log
         t = 0
         done = False
         episodic_q = 0.
@@ -73,8 +71,7 @@ class RolloutGenerator:
 
             # Render if required
             if "render" in self.__dict__ and self.render:
-                if self.eval:
-                    self.env.render()
+                self.env.render()
 
             # Update stats
             t += 1
@@ -87,12 +84,12 @@ class RolloutGenerator:
             else:
                 if "step_sleep" in self.__dict__:
                     time.sleep(self.step_sleep)
-        self.agent.update_targets()
         self.episode += 1
         self.update_stats(episodic_q, episodic_r, t)
         self.successes += 1 if done else 0
         self.agent.remember(trajectory)
         self.logger.out(self.logstr.format(self.episode, episodic_r, t, episodic_q/t))
+        self.agent.update_targets()
         self.create_checkpoint()
 
     def create_checkpoint(self):
