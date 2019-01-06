@@ -50,9 +50,9 @@ class RolloutGenerator:
         trajectory = Episode(13)
 
         # for sequence generation
-        obs_stack = {i: deque([np.zeros(10)]*self.tracelen,
+        obs_stack = {i: deque([np.zeros(16)]*self.tracelen,
                         maxlen=self.tracelen) for i in range(3)}
-        state_stack = deque([np.zeros(14)]*self.tracelen, maxlen=self.tracelen)
+        state_stack = deque([np.zeros(20)]*self.tracelen, maxlen=self.tracelen)
 
         obs, state = self.env.reset()
         while not done and t < self.env.max_episode_steps:
