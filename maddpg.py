@@ -31,8 +31,8 @@ class MADDPG:
         inputs = {}
         ph = lambda s, n: tf.placeholder(tf.float32, shape=s, name=n)
         with tf.name_scope("inputs"):
-            inputs["obs"] = ph((None,self.tracelen, 10), "obs")
-            inputs["state"] = ph((None,self.tracelen, 14), "state")
+            inputs["obs"] = ph((None,self.tracelen, 16), "obs")
+            inputs["state"] = ph((None,self.tracelen, 20), "state")
             inputs["dqdu"] = ph((None,self.tracelen, 2), "dqdu")
             inputs["a1"] = ph((None,self.tracelen, 2), "a1")
             inputs["a2"] = ph((None,self.tracelen, 2), "a2")
