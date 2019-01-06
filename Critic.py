@@ -28,22 +28,22 @@ class Critic:
                       tf.nn.relu, name="t_q")
 
     def define_operations(self):
-        with tf.name_scope("critic_ops"):
+        # with tf.name_scope("critic_ops"):
             # LOSS
-            loss = tf.sqrt(rmean(sq(self.pr - self.q.nn)))
-            # MINIMIZE LOSS OP
-            self.minimize = Adam(self.lr, name="q_adam")\
-                .minimize(loss, var_list=self.q.net_params)
-            # ACTION GRADIENTS
-            a_grads1 = tf.gradients(self.q.nn, self.a1, name="dq_da1")
-            a_grads2 = tf.gradients(self.q.nn, self.a2, name="dq_da2")
-            a_grads3 = tf.gradients(self.q.nn, self.a3, name="dq_da3")
-            self.a_grad_ops = [a_grads1, a_grads2, a_grads3]
-            # UPDATE TARGET OP
-            net_param_pairs = zip(self.q.net_params, self.Q.net_params)
-            with tf.name_scope("update_target_q"):
-                self.updt_Q = [j.assign(mul(self.tau, i)+mul((1-self.tau), j))
-                               for i, j in net_param_pairs]
+        loss = tf.sqrt(rmean(sq(self.pr - self.q.nn)))
+        # MINIMIZE LOSS OP
+        self.minimize = Adam(self.lr, name="q_adam")\
+            .minimize(loss, var_list=self.q.net_params)
+        # ACTION GRADIENTS
+        a_grads1 = tf.gradients(self.q.nn, self.a1, name="dq_da1")
+        a_grads2 = tf.gradients(self.q.nn, self.a2, name="dq_da2")
+        a_grads3 = tf.gradients(self.q.nn, self.a3, name="dq_da3")
+        self.a_grad_ops = [a_grads1, a_grads2, a_grads3]
+        # UPDATE TARGET OP
+        net_param_pairs = zip(self.q.net_params, self.Q.net_params)
+        with tf.name_scope("update_target_q"):
+            self.updt_Q = [j.assign(mul(self.tau, i)+mul((1-self.tau), j))
+                           for i, j in net_param_pairs]
 
     def predict(self, ip, a1, a2, a3):
         feed_vals = {self.ip: ip, self.a1: a1, self.a2: a2, self.a3: a3}

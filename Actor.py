@@ -27,18 +27,18 @@ class Actor:
                        tf.nn.relu, tf.nn.tanh, name="t_pi")
 
     def define_operations(self):
-        with tf.name_scope("actor_ops"):
-            # GRADIENT OF ACTIONS WRT ACTOR PARAMS TIMES NEGATIVE GRADIENT OF
-            # VALUE FUNCTION WRT ACTIONS
-            grads = tf.gradients(self.pi.nn, self.pi.net_params, -self.dqdu)
-            # APPLY GRADIENTS TO ACTOR NETWORK
-            self.optimize = Adam(self.lr, name="pi_adam")\
-                .apply_gradients(zip(grads, self.pi.net_params))
-            # UPDATE TARGET OP
-            net_param_pairs = zip(self.pi.net_params, self.PI.net_params)
-            with tf.name_scope("update_target_pi"):
-                self.updt_PI = [j.assign(mul(self.tau, i)+mul((1-self.tau), j))
-                                for i, j in net_param_pairs]
+        # with tf.name_scope("actor_ops"):
+        # GRADIENT OF ACTIONS WRT ACTOR PARAMS TIMES NEGATIVE GRADIENT OF
+        # VALUE FUNCTION WRT ACTIONS
+        grads = tf.gradients(self.pi.nn, self.pi.net_params, -self.dqdu)
+        # APPLY GRADIENTS TO ACTOR NETWORK
+        self.optimize = Adam(self.lr, name="pi_adam")\
+            .apply_gradients(zip(grads, self.pi.net_params))
+        # UPDATE TARGET OP
+        net_param_pairs = zip(self.pi.net_params, self.PI.net_params)
+        with tf.name_scope("update_target_pi"):
+            self.updt_PI = [j.assign(mul(self.tau, i)+mul((1-self.tau), j))
+                            for i, j in net_param_pairs]
 
     def predict(self, ip):
         return self.pi(self.session, ip)
