@@ -130,13 +130,14 @@ class FormEnv(gym.Env):
 
     def compute_obs(self):
         obs = {a.id: np.hstack([np.hstack([a.observes(b) for b in c]), 
+                     self.goal[:-2],
                      a.pose.observes(self.target)[:2]]) 
                      for a, c in self.nbhrs.items()}
         f_c = np.mean([a.pose.asPoint() for a in self.agents], axis=0)
         cst = np.hstack([a.pose.asPoint() - f_c for a in self.agents])
-        cst = np.hstack([cst, self.target.asPoint() - f_c])
+        tgt = self.target.asPoint() - f_c
         hed = np.hstack(FormEnv.cossin(a.pose.t) for a in self.agents)
-        return obs, np.hstack([cst, hed])
+        return obs, np.hstack([hed, cst, self.goal[:-2], tgt])
 
     def step(self, actions):
         # print(actions.values())
