@@ -28,13 +28,13 @@ class FormEnv(gym.Env):
         self.num_iter = 10
         self.max_episode_steps = 200
         self.step_penalty = 1.0
-        self.form_reward = 0.
+        self.form_reward = 0.1
         #### For compute_reward2
-        alpha = 0.1
-        self.form_reward = alpha/self.max_episode_steps 
+        # alpha = 0.1
+        # self.form_reward = alpha/self.max_episode_steps 
         ####
-        self.max_reward = self.max_episode_steps*(self.max_episode_steps-1)*self.form_reward
-        self.action_low = np.array([0.07, -np.pi/4])
+        self.max_reward = self.max_episode_steps*self.form_reward
+        self.action_low = np.array([-0.07, -np.pi/4])
         self.action_high = np.array([0.4, np.pi/4])
         self.action_space = Box(self.action_low, self.action_high, dtype="f")
         self.w_limits = np.array([10, 10])
@@ -78,36 +78,28 @@ class FormEnv(gym.Env):
         self.viewer.add_geom(circle)
 
     def get_form_goal(self):
-        sides = sorted(np.random.random(3)*0.8 + 1)
-        if np.array([np.sum(sides) - 2*x > 0 for x in sides]).all():
-            self.goal_sides = sides
-            a, b, c = sides
-            coordinates = [[0, 0], [a, 0]]
-            h = (c**2 - b**2 + a**2)/(2*a)
-            coordinates.append([h, (c**2 - h**2)**.5])
-            centroid = np.mean(coordinates, axis=0)
-            return np.hstack([i - centroid for i in coordinates])
-        return self.get_form_goal()
+        # will always return a triangle b/c sum of 2 minimum values is
+        # always greater than the max third value .... 
+        return sorted(np.random.random(3)*0.9 + 1)
 
     def sample_pose(self, limits=None):
         if limits is None:
             x, y = random(2)*self.w_limits - self.w_limits/2
         else:
+            limits = np.array(limits)
             x, y = random(2)*limits - limits/2
         theta = (random()*2 - 1)*np.pi
         return Pose(x=x, y=y, t=theta)
 
     def reset(self):
-        poses = self.get_form_goal().reshape((3,-1))
-        # log.out(poses)
-        [a.reset(Pose(*poses[i])) for i, a in enumerate(self.agents)]
-        formation = self.get_form_goal()
+        [a.reset(self.sample_pose(limits=[2, 2])) for a in self.agents]
+        self.formation = self.get_form_goal()
         self.target = self.sample_pose()
-        self.goal = np.hstack([formation, self.target.asPoint()])
+        self.goal = np.hstack([self.formation, self.target.asPoint()])
         self.goal_changed = True
         #### For compute_reward2
         self.formation_achieved = False
-        self.time_in_formation = 0
+        # self.time_in_formation = 0
         ####
         return self.compute_obs()
 
@@ -130,14 +122,16 @@ class FormEnv(gym.Env):
 
     def compute_obs(self):
         obs = {a.id: np.hstack([np.hstack([a.observes(b) for b in c]), 
-                     self.goal[:-2],
-                     a.pose.observes(self.target)[:2]]) 
+                     a.pose.observes(self.target)[:2], self.formation]) 
                      for a, c in self.nbhrs.items()}
-        f_c = np.mean([a.pose.asPoint() for a in self.agents], axis=0)
-        cst = np.hstack([a.pose.asPoint() - f_c for a in self.agents])
-        tgt = self.target.asPoint() - f_c
-        hed = np.hstack(FormEnv.cossin(a.pose.t) for a in self.agents)
-        return obs, np.hstack([hed, cst, self.goal[:-2], tgt])
+        cstate = np.hstack(obs.values())
+        # tgt = [a.observes(self.target)[:2] for a in self.agents]
+
+        # f_c = np.mean([a.pose.asPoint() for a in self.agents], axis=0)
+        # cst = np.hstack([a.pose.asPoint() - f_c for a in self.agents])
+        # hed = np.hstack(FormEnv.cossin(a.pose.t) for a in self.agents)
+        # return obs, np.hstack([hed, cst, tgt, self.formation])
+        return obs, cstate
 
     def step(self, actions):
         # print(actions.values())
