@@ -1,5 +1,7 @@
 # Formation Control Using MARL
 
+[Video to the output](https://www.youtube.com/watch?v=_w3tvqFUYxA)
+
 ## Some notes about this project
 
 This project aims at training agents to cooperatively learn a policy to move to
